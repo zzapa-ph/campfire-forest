@@ -1,0 +1,9 @@
+{
+  // 모닥불 숲: Worker 하나 + 정적 파일(public) + 숲을 관리하는 Durable Object
+  "name": "campfire-forest",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-15",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "durable_objects": { "bindings": [ { "name": "FOREST", "class_name": "Forest" } ] },
+  "migrations": [ { "tag": "v1", "new_sqlite_classes": ["Forest"] } ]
+}

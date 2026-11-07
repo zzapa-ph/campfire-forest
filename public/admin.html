@@ -1,0 +1,23 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>건의함 보기</title>
+<style>body{margin:0;font:15px/1.5 system-ui,sans-serif;background:#f4ecdc;color:#2b2117}main{max-width:760px;margin:0 auto;padding:24px 16px}
+h1{font-size:22px;margin:0 0 12px}form{display:flex;gap:8px;margin-bottom:16px}input{flex:1;padding:8px 10px;border:1px solid #c7b799;border-radius:6px;font:inherit}
+button{padding:8px 14px;border:0;border-radius:6px;background:#d07a2a;color:#fff;font:inherit;cursor:pointer}
+.it{background:#fff;border-radius:8px;padding:12px 14px;margin:0 0 10px;box-shadow:0 1px 2px rgba(0,0,0,.08)}.m{font-size:12px;color:#7a6a55}.c{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#e6dac3;margin-right:6px}</style></head>
+<body><main><h1>건의함</h1>
+<form id="f"><input id="k" type="password" placeholder="관리자 키" autocomplete="current-password"><button>불러오기</button></form>
+<div id="out"></div></main>
+<script>
+const CAT={bug:'고장',ux:'불편',idea:'아이디어',etc:'기타'};
+try{ document.getElementById('k').value=sessionStorage.getItem('fbkey')||''; }catch(e){}
+document.getElementById('f').addEventListener('submit',async e=>{ e.preventDefault(); const key=document.getElementById('k').value.trim(), out=document.getElementById('out');
+  try{ sessionStorage.setItem('fbkey',key); }catch(e){}
+  const r=await fetch('/api/coll/feedback',{headers:{'X-Admin-Key':key},cache:'no-store'}); if(!r.ok){ out.textContent='키가 맞지 않아요'; return; }
+  const items=(await r.json()).docs.flatMap(d=>(d.data.items||[]).map(it=>({...it,who:d.id.slice(0,6)}))).sort((a,b)=>b.t-a.t);
+  out.replaceChildren(); if(!items.length){ out.textContent='아직 건의가 없어요'; return; }
+  for(const it of items){ const d=document.createElement('div'); d.className='it';
+    const c=document.createElement('span'); c.className='c'; c.textContent=CAT[it.cat]||'기타';
+    const t=document.createElement('span'); t.textContent=it.text;
+    const m=document.createElement('div'); m.className='m'; m.textContent=`${new Date(it.t).toLocaleString('ko-KR')} / ${it.where||''}${it.pos?` (${it.pos.x}, ${it.pos.z})`:''} / ${it.dev==='mobile'?'모바일':'PC'} ${it.scr||''}${it.lowQ?' / 저사양 모드':''} / 보낸 사람 ${it.who}`;
+    d.append(c,t,m); out.append(d); } });
+</script></body></html>
