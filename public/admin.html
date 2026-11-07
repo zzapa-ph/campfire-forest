@@ -1,12 +1,13 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<title>건의함 보기</title>
+<title>숲 관리</title>
 <style>body{margin:0;font:15px/1.5 system-ui,sans-serif;background:#f4ecdc;color:#2b2117}main{max-width:760px;margin:0 auto;padding:24px 16px}
 h1{font-size:22px;margin:0 0 12px}form{display:flex;gap:8px;margin-bottom:16px}input{flex:1;padding:8px 10px;border:1px solid #c7b799;border-radius:6px;font:inherit}
 button{padding:8px 14px;border:0;border-radius:6px;background:#d07a2a;color:#fff;font:inherit;cursor:pointer}
 .it{background:#fff;border-radius:8px;padding:12px 14px;margin:0 0 10px;box-shadow:0 1px 2px rgba(0,0,0,.08)}.m{font-size:12px;color:#7a6a55}.c{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#e6dac3;margin-right:6px}</style></head>
-<body><main><h1>건의함</h1>
+<body><main><h1>숲 관리</h1>
 <form id="f"><input id="k" type="password" placeholder="관리자 키" autocomplete="current-password"><button>불러오기</button></form>
-<div id="out"></div></main>
+<h2 style="font-size:17px;margin:4px 0 8px">최근 14일 숲 기록</h2><table id="st" style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;margin-bottom:20px;font-variant-numeric:tabular-nums"></table>
+<h2 style="font-size:17px;margin:4px 0 8px">건의</h2><div id="out"></div></main>
 <script>
 const CAT={bug:'고장',ux:'불편',idea:'아이디어',etc:'기타'};
 try{ document.getElementById('k').value=sessionStorage.getItem('fbkey')||''; }catch(e){}
@@ -14,6 +15,11 @@ document.getElementById('f').addEventListener('submit',async e=>{ e.preventDefau
   try{ sessionStorage.setItem('fbkey',key); }catch(e){}
   const r=await fetch('/api/coll/feedback',{headers:{'X-Admin-Key':key},cache:'no-store'}); if(!r.ok){ out.textContent='키가 맞지 않아요'; return; }
   const items=(await r.json()).docs.flatMap(d=>(d.data.items||[]).map(it=>({...it,who:d.id.slice(0,6)}))).sort((a,b)=>b.t-a.t);
+  try{ const sr=await fetch('/api/coll/stats',{cache:'no-store'}); const docs=(await sr.json()).docs||[], agg={};
+    for(const d of docs) for(const [k,o] of Object.entries(d.data.days||{})){ const a=agg[k]=agg[k]||{v:0,w:0,b:0,e:0}; a.v+=o.v?1:0; a.w+=o.w||0; a.b+=o.b||0; a.e+=o.e||0; }
+    const tb=document.getElementById('st'); tb.replaceChildren(); const hd=document.createElement('tr'); ['날짜','방문한 사람','태운 걱정','넣은 장작','먹은 마시멜로'].forEach(h=>{ const th=document.createElement('th'); th.textContent=h; th.style.cssText='text-align:left;padding:6px 10px;border-bottom:1px solid #e5dcc8;font-size:13px'; hd.append(th); }); tb.append(hd);
+    const keys=Object.keys(agg).sort().reverse().slice(0,14); if(!keys.length){ const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=5; td.style.padding='8px 10px'; td.textContent='아직 기록이 없어요'; tr.append(td); tb.append(tr); }
+    for(const k of keys){ const tr=document.createElement('tr'); [k,agg[k].v,agg[k].w,agg[k].b,agg[k].e].forEach(v=>{ const td=document.createElement('td'); td.textContent=v; td.style.cssText='padding:6px 10px;border-bottom:1px solid #f0e8d8'; tr.append(td); }); tb.append(tr); } }catch(e){}
   out.replaceChildren(); if(!items.length){ out.textContent='아직 건의가 없어요'; return; }
   for(const it of items){ const d=document.createElement('div'); d.className='it';
     const c=document.createElement('span'); c.className='c'; c.textContent=CAT[it.cat]||'기타';
