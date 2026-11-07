@@ -81,7 +81,7 @@ export class Forest {
 
   async api(req, url) {
     const [, , , coll, rawId] = url.pathname.split('/');
-    if (coll !== 'letters' && coll !== 'reports' && coll !== 'feedback') return this.json({ error: 'unknown collection' }, 404);
+    if (!['letters', 'reports', 'feedback', 'stats'].includes(coll)) return this.json({ error: 'unknown collection' }, 404);
     const uid = req.headers.get('X-Uid'), tok = req.headers.get('X-Token') || '';
     // 건의함은 만든 사람(관리자 키를 가진 사람)만 전체를 읽음
     if (coll === 'feedback' && req.method === 'GET' && !rawId) {
@@ -108,7 +108,7 @@ export class Forest {
     const row = this.sql.exec('SELECT owner, updated FROM docs WHERE coll = ? AND id = ?', coll, id).toArray()[0];
     if (row && row.owner !== owner) return this.json({ error: 'not yours' }, 403);
     if (row && Date.now() - row.updated < WRITE_GAP_MS) return this.json({ error: 'too fast' }, 429);
-    if (!row && coll !== 'reports') {
+    if (!row && coll !== 'reports' && coll !== 'stats') {
       const n = this.sql.exec('SELECT COUNT(*) AS n FROM docs WHERE coll = ?', coll).toArray()[0].n;
       if (n >= MAX_LETTER_DOCS) return this.json({ error: 'full' }, 507);
     }
@@ -133,6 +133,12 @@ export class Forest {
         text: norm(it && it.text).slice(0, 300), t: Math.min(Date.now(), Number(it && it.t) || Date.now()),
         where: norm(it && it.where).slice(0, 40), pos: it && it.pos && Number.isFinite(it.pos.x) && Number.isFinite(it.pos.z) ? { x: +it.pos.x, z: +it.pos.z } : null,
         dev: it && it.dev === 'mobile' ? 'mobile' : 'desktop', scr: String(it && it.scr || '').slice(0, 12), lowQ: !!(it && it.lowQ) })).filter(it => it.text.length >= 2) };
+    } else if (coll === 'stats') {
+      // 하루별 숫자만: v 방문, w 태운 걱정, b 넣은 장작, e 먹은 마시멜로
+      const days = body && typeof body.days === 'object' && !Array.isArray(body.days) ? body.days : null; if (!days) return this.json({ error: 'bad body' }, 400);
+      const n = x => Math.max(0, Math.min(9999, Math.floor(Number(x) || 0)));
+      clean = { days: {} };
+      for (const k of Object.keys(days).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)).sort().slice(-14)) { const o = days[k] || {}; clean.days[k] = { v: n(o.v) ? 1 : 0, w: n(o.w), b: n(o.b), e: n(o.e) }; }
     } else {
       const keys = Array.isArray(body.keys) ? body.keys.slice(-100) : null; if (!keys) return this.json({ error: 'bad body' }, 400);
       clean = { keys: keys.map(k => String(k).slice(0, 80)).filter(k => /^[a-z0-9-]{8,40}:[a-z0-9]{1,24}$/.test(k)) };
