@@ -16,6 +16,18 @@ const plain = t => norm(t).replace(/[\s.,·*_\-~!?]/g, '');
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    // 날씨: 서울의 지금 날씨를 10분씩 저장해 두고 나눠 줌
+    if (url.pathname === '/api/weather') {
+      const cache = caches.default, key = new Request('https://weather.cache/seoul');
+      let res = await cache.match(key);
+      if (!res) {
+        const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978&current=weather_code,precipitation,rain,snowfall,cloud_cover&timezone=Asia%2FSeoul');
+        if (!r.ok) return new Response('{}', { status: 502, headers: { 'Content-Type': 'application/json' } });
+        res = new Response(await r.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' } });
+        await cache.put(key, res.clone());
+      }
+      return res;
+    }
     if (url.pathname === '/ws' || url.pathname.startsWith('/api/')) {
       const stub = env.FOREST.get(env.FOREST.idFromName('main'));
       return stub.fetch(req);
